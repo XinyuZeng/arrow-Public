@@ -5,7 +5,7 @@
 #include <sstream>
 #include <thread>
 
-#include <gperftools/profiler.h>
+// #include <gperftools/profiler.h>
 #include <parquet/api/reader.h>
 #include "arrow/array.h"
 #include "arrow/array/builder_binary.h"
@@ -34,7 +34,7 @@ arrow::Status async_read_file(parquet::ParquetFileReader* reader) {
   for (int i = 0; i < reader->metadata()->num_row_groups(); i++) {
     for (int j = 0; j < reader->metadata()->num_columns(); j++) {
       reader->PreBuffer({i}, {j}, io_context, cache_options);
-      reader->WhenBuffered({i}, {j}).Wait();
+      // reader->WhenBuffered({i}, {j}).Wait();
     }
   }
   return arrow::Status::OK();
@@ -51,12 +51,12 @@ arrow::Status RunMain(int argc, char** argv) {
 
   std::string file_path = argv[1];
   int async_read = atoi(argv[2]);
-  bool profiler_enabled = false;
+  // bool profiler_enabled = false;
   bool use_threads = false;
   int batch_size = 1024;
   std::string prof_name = "";
   ARROW_UNUSED(use_threads);
-  if (profiler_enabled) ProfilerStart(prof_name.c_str());
+  // if (profiler_enabled) ProfilerStart(prof_name.c_str());
   // fs::S3FileSystem::
   ARROW_ASSIGN_OR_RAISE(auto fs, fs::FileSystemFromUri(file_path));
   ARROW_ASSIGN_OR_RAISE(auto input, fs->OpenInputFile(file_path));
@@ -88,7 +88,7 @@ arrow::Status RunMain(int argc, char** argv) {
   if (async_read) {
     th1.join();
   }
-  if (profiler_enabled) ProfilerStop();
+  // if (profiler_enabled) ProfilerStop();
   return arrow::Status::OK();
 }
 

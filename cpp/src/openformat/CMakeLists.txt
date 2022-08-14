@@ -37,10 +37,10 @@ else()
 endif()
 
 
-add_library(gprof SHARED IMPORTED)
-set_target_properties(gprof PROPERTIES IMPORTED_LOCATION /usr/local/lib/libprofiler.so)
+# add_library(gprof SHARED IMPORTED)
+# set_target_properties(gprof PROPERTIES IMPORTED_LOCATION /usr/local/lib/libprofiler.so)
 
-set(LIBS ${PARQUET_EXAMPLE_LINK_LIBS} arrow_shared ${DATASET_EXAMPLES_LINK_LIBS} gprof)
+set(LIBS ${PARQUET_EXAMPLE_LINK_LIBS} arrow_shared ${DATASET_EXAMPLES_LINK_LIBS})
 
 file( GLOB OPENFORMAT_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cc )
 foreach(sourcefile ${OPENFORMAT_SOURCES})
