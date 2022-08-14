@@ -971,6 +971,16 @@ list(APPEND ARROW_STATIC_INSTALL_INTERFACE_LIBS ${ARROW_SYSTEM_LINK_LIBS})
 #
 # Subdirectories
 #
+option(OPENFORMAT_FLAG
+    "Enable the openformat changes"
+    OFF)
+if (OPENFORMAT_FLAG)
+  message(STATUS "Enable the openformat changes")
+  add_compile_definitions(OPENFORMAT_FLAG=1)
+else ()
+  message(STATUS "Disable the openformat changes")
+  add_compile_definitions(OPENFORMAT_FLAG=0)
+endif ()
 
 if(NOT WIN32 AND ARROW_PLASMA)
   add_subdirectory(src/plasma)
