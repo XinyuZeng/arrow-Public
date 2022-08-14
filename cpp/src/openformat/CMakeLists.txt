@@ -16,13 +16,13 @@
 # under the License.
 
 
-add_executable(pq_writer pq_writer.cc)
-add_executable(pq_reader pq_reader.cc)
-add_executable(orc_reader orc_reader.cc)
-add_executable(buff_test buffer_builder_test.cc)
-add_executable(raw_reader raw_reader.cc)
-add_executable(raw_reader_v2 raw_reader_v2.cc)
-add_executable(rle_test rle_test.cc)
+# add_executable(pq_writer pq_writer.cc)
+# add_executable(pq_reader pq_reader.cc)
+# add_executable(orc_reader orc_reader.cc)
+# add_executable(buff_test buffer_builder_test.cc)
+# add_executable(raw_reader raw_reader.cc)
+# add_executable(raw_reader_v2 raw_reader_v2.cc)
+# add_executable(rle_test rle_test.cc)
 # target_include_directories(parquet-low-level-example PRIVATE low_level_api/)
 # target_include_directories(parquet-low-level-example2 PRIVATE low_level_api/)
 
@@ -42,13 +42,21 @@ set_target_properties(gprof PROPERTIES IMPORTED_LOCATION /usr/local/lib/libprofi
 
 set(LIBS ${PARQUET_EXAMPLE_LINK_LIBS} arrow_shared ${DATASET_EXAMPLES_LINK_LIBS} gprof)
 
-target_link_libraries(pq_writer ${LIBS})
-target_link_libraries(pq_reader ${LIBS})
-target_link_libraries(orc_reader ${LIBS})
-target_link_libraries(buff_test ${LIBS})
-target_link_libraries(raw_reader ${LIBS})
-target_link_libraries(raw_reader_v2 ${LIBS})
-target_link_libraries(rle_test ${LIBS})
+file( GLOB OPENFORMAT_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cc )
+foreach(sourcefile ${OPENFORMAT_SOURCES})
+    file(RELATIVE_PATH filename ${CMAKE_CURRENT_SOURCE_DIR} ${sourcefile})
+    string( REPLACE ".cc" "" testname ${filename} )
+    add_executable( ${testname} ${sourcefile} )
+    target_link_libraries( ${testname} ${LIBS} )
+endforeach(sourcefile ${OPENFORMAT_SOURCES})
+
+# target_link_libraries(pq_writer ${LIBS})
+# target_link_libraries(pq_reader ${LIBS})
+# target_link_libraries(orc_reader ${LIBS})
+# target_link_libraries(buff_test ${LIBS})
+# target_link_libraries(raw_reader ${LIBS})
+# target_link_libraries(raw_reader_v2 ${LIBS})
+# target_link_libraries(rle_test ${LIBS})
 
 
 add_dependencies(parquet pq_writer pq_reader orc_reader)

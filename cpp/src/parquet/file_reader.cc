@@ -305,8 +305,10 @@ class SerializedFile : public ParquetFileReader::Contents {
                  const std::vector<int>& column_indices,
                  const ::arrow::io::IOContext& ctx,
                  const ::arrow::io::CacheOptions& options) {
-    cached_source_ =
-        std::make_shared<::arrow::io::internal::ReadRangeCache>(source_, ctx, options);
+    if (cached_source_ == nullptr) {
+      cached_source_ =
+          std::make_shared<::arrow::io::internal::ReadRangeCache>(source_, ctx, options);
+    }
     std::vector<::arrow::io::ReadRange> ranges;
     for (int row : row_groups) {
       for (int col : column_indices) {
