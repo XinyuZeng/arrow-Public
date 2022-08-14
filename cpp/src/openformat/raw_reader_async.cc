@@ -18,6 +18,7 @@
 #include "arrow/dataset/file_base.h"
 #include "arrow/filesystem/api.h"
 #include "arrow/io/file.h"
+#include "arrow/util/checked_cast.h"
 #include "json.hpp"
 #include "parquet/arrow/writer.h"
 #include "parquet/file_reader.h"
@@ -58,7 +59,14 @@ arrow::Status RunMain(int argc, char** argv) {
   ARROW_UNUSED(use_threads);
   // if (profiler_enabled) ProfilerStart(prof_name.c_str());
   // fs::S3FileSystem::
-  ARROW_ASSIGN_OR_RAISE(auto fs, fs::FileSystemFromUri(file_path));
+
+  ARROW_CHECK_OK(fs::InitializeS3(fs::S3GlobalOptions()));
+  auto s3_options = fs::S3Options::Defaults();
+  s3_options.region = "cn-north-1";
+  ARROW_ASSIGN_OR_RAISE(auto fs, fs::S3FileSystem::Make(s3_options));
+  // ARROW_ASSIGN_OR_RAISE(auto fs, fs::FileSystemFromUri(file_path));
+  // auto s3fs = arrow::internal::checked_pointer_cast<fs::S3FileSystem>(fs);
+  // s3fs->region
   ARROW_ASSIGN_OR_RAISE(auto input, fs->OpenInputFile(file_path));
   // fs::S3FileSystem::Make()
 

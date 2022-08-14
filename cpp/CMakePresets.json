@@ -173,7 +173,8 @@
         "PARQUET_BUILD_EXECUTABLES": "ON",
         "ARROW_ORC": "ON",
         "PARQUET_BUILD_EXAMPLES": "OFF",
-        "OPENFORMAT_FLAG": "ON"
+        "OPENFORMAT_FLAG": "ON",
+        "ARROW_S3": "ON"
       }
     },
     {
@@ -188,7 +189,8 @@
         "ARROW_PARQUET": "ON",
         "PARQUET_BUILD_EXAMPLES": "ON",
         "ARROW_ORC": "ON",
-        "PARQUET_BUILD_EXECUTABLES": "ON"
+        "PARQUET_BUILD_EXECUTABLES": "ON",
+        "ARROW_S3": "ON"
       }
     },
     {
