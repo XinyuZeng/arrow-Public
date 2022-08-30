@@ -1,0 +1,6 @@
+{
+  "comment": {
+    "ARROW_SIMD_LEVEL": "NO_SIMD",
+    "ARROW_RUNTIME_SIMD_LEVEL": "NONE"
+  }
+}

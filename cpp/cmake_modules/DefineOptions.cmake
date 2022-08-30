@@ -127,6 +127,7 @@ if(ARROW_DEFINE_OPTIONS)
                        "AVX2"
                        "AVX512"
                        "NEON"
+                       "NO_SIMD"
                        "DEFAULT")
 
   define_option_string(ARROW_RUNTIME_SIMD_LEVEL
