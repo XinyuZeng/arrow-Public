@@ -23,13 +23,22 @@
 #include <vector>
 
 #include "arrow/io/caching.h"
+#include "arrow/scalar.h"
 #include "arrow/util/type_fwd.h"
 #include "parquet/metadata.h"  // IWYU pragma: keep
 #include "parquet/platform.h"
 #include "parquet/properties.h"
 
-namespace parquet {
+enum MyFilterType { POINT = 0, RANGE = 1 };
 
+struct MyFilter {
+  int colIdx;
+  MyFilterType type;
+  std::shared_ptr<arrow::Scalar> value1;
+  std::shared_ptr<arrow::Scalar> value2;
+};
+
+namespace parquet {
 class ColumnReader;
 class FileMetaData;
 class PageReader;
@@ -59,9 +68,9 @@ class PARQUET_EXPORT RowGroupReader {
   // Construct a ColumnReader, trying to enable exposed encoding.
   //
   // For dictionary encoding, currently we only support column chunks that are fully
-  // dictionary encoded, i.e., all data pages in the column chunk are dictionary encoded.
-  // If a column chunk uses dictionary encoding but then falls back to plain encoding, the
-  // encoding will not be exposed.
+  // dictionary encoded, i.e., all data pages in the column chunk are dictionary
+  // encoded. If a column chunk uses dictionary encoding but then falls back to plain
+  // encoding, the encoding will not be exposed.
   //
   // The returned column reader provides an API GetExposedEncoding() for the
   // users to check the exposed encoding and determine how to read the batches.
@@ -184,5 +193,7 @@ ReadMetaData(const std::shared_ptr<::arrow::io::RandomAccessFile>& source);
 PARQUET_EXPORT
 int64_t ScanFileContents(std::vector<int> columns, const int32_t column_batch_size,
                          ParquetFileReader* reader);
+int64_t FilterScanFileContents(std::vector<int> columns, const int32_t column_batch_size,
+                               ParquetFileReader* reader, MyFilter* filter);
 
 }  // namespace parquet

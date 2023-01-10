@@ -209,6 +209,7 @@
         "PARQUET_BUILD_EXAMPLES": "ON",
         "ARROW_ORC": "ON",
         "PARQUET_BUILD_EXECUTABLES": "ON",
+        "OPENFORMAT_FLAG": "OFF",
         "ARROW_S3": "ON"
       }
     },

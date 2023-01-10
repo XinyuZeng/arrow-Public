@@ -20,14 +20,19 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 #include <memory>
 #include <ostream>
 #include <string>
 #include <utility>
+#include "arrow/filesystem/api.h"
+#include "arrow/io/file.h"
+#include "arrow/io/interfaces.h"
 
 #include "arrow/io/caching.h"
 #include "arrow/io/file.h"
 #include "arrow/io/memory.h"
+#include "arrow/status.h"
 #include "arrow/util/checked_cast.h"
 #include "arrow/util/future.h"
 #include "arrow/util/int_util_overflow.h"
@@ -43,6 +48,7 @@
 #include "parquet/platform.h"
 #include "parquet/properties.h"
 #include "parquet/schema.h"
+#include "parquet/statistics.h"
 #include "parquet/types.h"
 
 using arrow::internal::AddWithOverflow;
@@ -850,11 +856,163 @@ int64_t ScanFileContents(std::vector<int> columns, const int32_t column_batch_si
   }
 
   std::vector<int64_t> total_rows(num_columns, 0);
+  // arrow::io::IOContext io_context = arrow::io::default_io_context();
+  // arrow::io::CacheOptions cache_options = arrow::io::CacheOptions::Defaults();
 
   for (int r = 0; r < reader->metadata()->num_row_groups(); ++r) {
+    // auto s = reader->WhenBuffered({r}, {0}).status();
+    // if (s.ok() == false) {
+    //   std::cout << s.ToString() << std::endl;
+    // }
     auto group_reader = reader->RowGroup(r);
     int col = 0;
     for (auto i : columns) {
+      // if (i != 0) {
+      //   auto s2 = reader->WhenBuffered({r}, {i}).status();
+      //   if (s2.ok() == false) {
+      //     std::cout << s2.ToString() << std::endl;
+      //   }
+      // }
+      std::shared_ptr<ColumnReader> col_reader = group_reader->Column(i);
+      size_t value_byte_size = GetTypeByteSize(col_reader->descr()->physical_type());
+      std::vector<uint8_t> values(column_batch_size * value_byte_size);
+
+      int64_t values_read = 0;
+      while (col_reader->HasNext()) {
+        int64_t levels_read =
+            ScanAllValues(column_batch_size, def_levels.data(), rep_levels.data(),
+                          values.data(), &values_read, col_reader.get());
+        if (col_reader->descr()->max_repetition_level() > 0) {
+          for (int64_t i = 0; i < levels_read; i++) {
+            if (rep_levels[i] == 0) {
+              total_rows[col]++;
+            }
+          }
+        } else {
+          total_rows[col] += levels_read;
+        }
+      }
+      col++;
+    }
+  }
+
+  for (int i = 1; i < num_columns; ++i) {
+    if (total_rows[0] != total_rows[i]) {
+      throw ParquetException("Parquet error: Total rows among columns do not match");
+    }
+  }
+
+  return total_rows[0];
+}
+
+int64_t FilterScanFileContents(std::vector<int> columns, const int32_t column_batch_size,
+                               ParquetFileReader* reader, MyFilter* filter) {
+  std::vector<int16_t> rep_levels(column_batch_size);
+  std::vector<int16_t> def_levels(column_batch_size);
+
+  int num_columns = static_cast<int>(columns.size());
+
+  // columns are not specified explicitly. Add all columns
+  if (columns.size() == 0) {
+    num_columns = reader->metadata()->num_columns();
+    columns.resize(num_columns);
+    for (int i = 0; i < num_columns; i++) {
+      columns[i] = i;
+    }
+  }
+  if (num_columns == 0) {
+    // If we still have no columns(none in file), return early. The remainder of function
+    // expects there to be at least one column.
+    return 0;
+  }
+
+  std::vector<int64_t> total_rows(num_columns, 0);
+  // arrow::io::IOContext io_context = arrow::io::default_io_context();
+  // arrow::io::CacheOptions cache_options = arrow::io::CacheOptions::Defaults();
+
+  for (int r = 0; r < reader->metadata()->num_row_groups(); ++r) {
+    // auto s = reader->WhenBuffered({r}, {0}).status();
+    // if (s.ok() == false) {
+    //   std::cout << s.ToString() << std::endl;
+    // }
+    auto group_reader = reader->RowGroup(r);
+    auto column_chunk_meta = group_reader->metadata()->ColumnChunk(filter->colIdx);
+    auto stat = column_chunk_meta->statistics();
+    switch (column_chunk_meta->type()) {
+      case Type::INT64: {
+        Int64Statistics* int_stat = dynamic_cast<Int64Statistics*>(stat.get());
+        if (int_stat != nullptr) {
+          int64_t v1 = dynamic_cast<::arrow::Int64Scalar*>(filter->value1.get())->value;
+          int64_t v2 = dynamic_cast<::arrow::Int64Scalar*>(filter->value2.get())->value;
+          if (filter->type == MyFilterType::POINT) {
+            if (int_stat->min() > v1 || int_stat->max() < v1) {
+              continue;
+            }
+          } else if (filter->type == MyFilterType::RANGE) {
+            if (int_stat->min() > v2 || int_stat->max() < v1) {
+              continue;
+            }
+          } else {
+            throw ParquetException("Parquet error: Unknown filter type");
+          }
+        }
+        break;
+      }
+      case Type::DOUBLE: {
+        DoubleStatistics* double_stat = dynamic_cast<DoubleStatistics*>(stat.get());
+        if (double_stat != nullptr) {
+          double v1 = dynamic_cast<::arrow::DoubleScalar*>(filter->value1.get())->value;
+          double v2 = dynamic_cast<::arrow::DoubleScalar*>(filter->value2.get())->value;
+          if (filter->type == MyFilterType::POINT) {
+            if (double_stat->min() > v1 || double_stat->max() < v1) {
+              continue;
+            }
+          } else if (filter->type == MyFilterType::RANGE) {
+            if (double_stat->min() > v2 || double_stat->max() < v1) {
+              continue;
+            }
+          } else {
+            throw ParquetException("Parquet error: Unknown filter type");
+          }
+        }
+        break;
+      }
+      case Type::BYTE_ARRAY: {
+        ByteArrayStatistics* double_stat = dynamic_cast<ByteArrayStatistics*>(stat.get());
+        auto min = double_stat->min();
+        auto max = double_stat->max();
+        ::arrow::util::string_view min_sv(reinterpret_cast<const char*>(min.ptr),
+                                          min.len);
+        ::arrow::util::string_view max_sv(reinterpret_cast<const char*>(max.ptr),
+                                          max.len);
+        if (double_stat != nullptr) {
+          auto v1 = dynamic_cast<::arrow::StringScalar*>(filter->value1.get())->view();
+          auto v2 = dynamic_cast<::arrow::StringScalar*>(filter->value2.get())->view();
+          if (filter->type == MyFilterType::POINT) {
+            if (min_sv > v1 || max_sv < v1) {
+              continue;
+            }
+          } else if (filter->type == MyFilterType::RANGE) {
+            if (min_sv > v2 || max_sv < v1) {
+              continue;
+            }
+          } else {
+            throw ParquetException("Parquet error: Unknown filter type");
+          }
+        }
+        break;
+      }
+      default:
+        throw ParquetException("Parquet error: Unsupported filter column type");
+    }
+    int col = 0;
+    for (auto i : columns) {
+      // if (i != 0) {
+      //   auto s2 = reader->WhenBuffered({r}, {i}).status();
+      //   if (s2.ok() == false) {
+      //     std::cout << s2.ToString() << std::endl;
+      //   }
+      // }
       std::shared_ptr<ColumnReader> col_reader = group_reader->Column(i);
       size_t value_byte_size = GetTypeByteSize(col_reader->descr()->physical_type());
       std::vector<uint8_t> values(column_batch_size * value_byte_size);
