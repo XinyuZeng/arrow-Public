@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
   std::string filename;
 
   // Read command-line options
-  int batch_size = 256;
+  int batch_size = 1024;
   const std::string COLUMNS_PREFIX = "--columns=";
   const std::string BATCH_SIZE_PREFIX = "--batch-size=";
   std::vector<int> columns;

@@ -21,35 +21,39 @@
 #include <list>
 #include <memory>
 
-#include "arrow/scalar.h"
+#include "arrow/array.h"
+#include "arrow/array/builder_binary.h"
+#include "arrow/buffer_builder.h"
+#include "arrow/compute/api_aggregate.h"
+#include "arrow/compute/kernels/util_internal.h"
+#include "arrow/csv/api.h"
+#include "arrow/dataset/api.h"
+#include "arrow/dataset/discovery.h"
+#include "arrow/dataset/file_base.h"
+#include "arrow/filesystem/api.h"
+#include "arrow/io/file.h"
+#include "arrow/util/checked_cast.h"
+#include "arrow/util/logging.h"
 #include "arrow/util/openformat_config.h"
 #include "arrow/util/openformat_stats.h"
 #include "parquet/api/reader.h"
+#include "parquet/file_reader.h"
 
-int main(int argc, char** argv) {
-  if (argc > 9 || argc < 1) {
-    std::cerr << "Usage: filter-scan [--batch-size=] [--columns=...] [--filter_idx=...] "
-                 "[--filter_type=...] [--type=...] [--v1=...] [--v2=...] <file> "
+namespace fs = arrow::fs;
+
+arrow::Status RunMain(int argc, char** argv) {
+  if (argc > 4 || argc < 1) {
+    std::cerr << "Usage: parquet-scan [--batch-size=] [--columns=...] <file>"
               << std::endl;
-    return -1;
+    return arrow::Status::OK();
   }
 
   std::string filename;
 
   // Read command-line options
-  int batch_size = 256;
-  int filter_idx = 0;
-  MyFilterType filter_type = MyFilterType::POINT;  // 0 for point, 1 for range
-  int type = 0;  // 0 for int64, 1 for double, 2 for string
-  std::shared_ptr<arrow::Scalar> v1;
-  std::shared_ptr<arrow::Scalar> v2;
+  int batch_size = 1024;
   const std::string COLUMNS_PREFIX = "--columns=";
   const std::string BATCH_SIZE_PREFIX = "--batch-size=";
-  const std::string IDX_PREFIX = "--filter_idx=";
-  const std::string F_TYPE_PREFIX = "--filter_type=";
-  const std::string TYPE_PREFIX = "--type=";
-  const std::string V1_PREFIX = "--v1=";
-  const std::string V2_PREFIX = "--v2=";
   std::vector<int> columns;
   int num_columns = 0;
 
@@ -67,62 +71,32 @@ int main(int argc, char** argv) {
       if (value) {
         batch_size = std::atoi(value);
       }
-    } else if ((param = std::strstr(argv[i], IDX_PREFIX.c_str()))) {
-      value = std::strtok(param + IDX_PREFIX.length(), " ");
-      if (value) {
-        filter_idx = std::atoi(value);
-      }
-    } else if ((param = std::strstr(argv[i], F_TYPE_PREFIX.c_str()))) {
-      value = std::strtok(param + F_TYPE_PREFIX.length(), " ");
-      if (value) {
-        filter_type = std::atoi(value) == 0 ? MyFilterType::POINT : MyFilterType::RANGE;
-      }
-    } else if ((param = std::strstr(argv[i], TYPE_PREFIX.c_str()))) {
-      value = std::strtok(param + TYPE_PREFIX.length(), " ");
-      if (value) {
-        type = std::atoi(value);
-      }
-    } else if ((param = std::strstr(argv[i], V1_PREFIX.c_str()))) {
-      value = std::strtok(param + V1_PREFIX.length(), " ");
-      if (value) {
-        if (type == 0) {
-          v1 = std::make_shared<arrow::Int64Scalar>(std::atoi(value));
-        } else if (type == 1) {
-          v1 = std::make_shared<arrow::DoubleScalar>(std::atof(value));
-        } else {
-          v1 = std::make_shared<arrow::StringScalar>(value);
-        }
-      }
-    } else if ((param = std::strstr(argv[i], V2_PREFIX.c_str()))) {
-      value = std::strtok(param + V2_PREFIX.length(), " ");
-      if (value) {
-        if (type == 0) {
-          v2 = std::make_shared<arrow::Int64Scalar>(std::atoi(value));
-        } else if (type == 1) {
-          v2 = std::make_shared<arrow::DoubleScalar>(std::atof(value));
-        } else {
-          v2 = std::make_shared<arrow::StringScalar>(value);
-        }
-      }
     } else {
       filename = argv[i];
     }
   }
-
-  MyFilter filter{filter_idx, filter_type, v1, v2};
-
+  ARROW_CHECK_OK(fs::InitializeS3(fs::S3GlobalOptions()));
+  auto s3_options = fs::S3Options::Defaults();
+  s3_options.region = "cn-north-1";
+  s3_options.ConfigureAccessKey("AKIA2RIW35GD5Y4ZGVIV",
+                                "+WiWhyk7WjXM8CsEcXMqN+TmQrSQFbJgKoM8MPCr");
+  ARROW_ASSIGN_OR_RAISE(auto fs, fs::S3FileSystem::Make(s3_options));
+  // ARROW_ASSIGN_OR_RAISE(auto fs, fs::FileSystemFromUri(filename));
+  ARROW_ASSIGN_OR_RAISE(auto input, fs->OpenInputFile(filename));
   try {
     double total_time;
     // auto reader_properties = parquet::default_reader_properties();
     // reader_properties.enable_buffered_stream();
     // std::clock_t start_time = std::clock();
     auto begin = std::chrono::steady_clock::now();
-    std::unique_ptr<parquet::ParquetFileReader> reader =
-        parquet::ParquetFileReader::OpenFile(filename);
+    auto reader_fut = parquet::ParquetFileReader::OpenAsync(input);
+    ARROW_ASSIGN_OR_RAISE(std::unique_ptr<parquet::ParquetFileReader> reader,
+                          reader_fut.MoveResult());
+    // std::unique_ptr<parquet::ParquetFileReader> reader =
+    //     parquet::ParquetFileReader::OpenFile(filename);
     // parquet::ParquetFileReader::OpenFile(filename, false, reader_properties);
 
-    int64_t total_rows =
-        parquet::FilterScanFileContents(columns, batch_size, reader.get(), &filter);
+    int64_t total_rows = parquet::ScanFileContents(columns, batch_size, reader.get());
 
     total_time = (static_cast<std::chrono::duration<double>>(
                       std::chrono::steady_clock::now() - begin))
@@ -133,13 +107,21 @@ int main(int argc, char** argv) {
               << std::endl;
   } catch (const std::exception& e) {
     std::cerr << "Parquet error: " << e.what() << std::endl;
-    return -1;
+    return arrow::Status::OK();
   }
 
 #if OF_STATS_ENABLE
   std::cout << "total read time: " << arrow::openformat::time_read << "ns" << std::endl;
   std::cout << "total read cnt: " << arrow::openformat::num_read << std::endl;
 #endif
-  system("cat /proc/$PPID/io");
-  return 0;
+  return arrow::Status::OK();
+}
+
+int main(int argc, char** argv) {
+  arrow::Status status = RunMain(argc, argv);
+  if (!status.ok()) {
+    std::cerr << status << std::endl;
+    return EXIT_FAILURE;
+  }
+  return EXIT_SUCCESS;
 }
