@@ -938,6 +938,7 @@ int64_t FilterScanFileContents(std::vector<int> columns, const int32_t column_ba
     auto group_reader = reader->RowGroup(r);
     auto column_chunk_meta = group_reader->metadata()->ColumnChunk(filter->colIdx);
     auto stat = column_chunk_meta->statistics();
+    bool skip = false;
     switch (column_chunk_meta->type()) {
       case Type::INT64: {
         Int64Statistics* int_stat = dynamic_cast<Int64Statistics*>(stat.get());
@@ -946,11 +947,11 @@ int64_t FilterScanFileContents(std::vector<int> columns, const int32_t column_ba
           int64_t v2 = dynamic_cast<::arrow::Int64Scalar*>(filter->value2.get())->value;
           if (filter->type == MyFilterType::POINT) {
             if (int_stat->min() > v1 || int_stat->max() < v1) {
-              continue;
+              skip = true;
             }
           } else if (filter->type == MyFilterType::RANGE) {
             if (int_stat->min() > v2 || int_stat->max() < v1) {
-              continue;
+              skip = true;
             }
           } else {
             throw ParquetException("Parquet error: Unknown filter type");
@@ -965,11 +966,11 @@ int64_t FilterScanFileContents(std::vector<int> columns, const int32_t column_ba
           double v2 = dynamic_cast<::arrow::DoubleScalar*>(filter->value2.get())->value;
           if (filter->type == MyFilterType::POINT) {
             if (double_stat->min() > v1 || double_stat->max() < v1) {
-              continue;
+              skip = true;
             }
           } else if (filter->type == MyFilterType::RANGE) {
             if (double_stat->min() > v2 || double_stat->max() < v1) {
-              continue;
+              skip = true;
             }
           } else {
             throw ParquetException("Parquet error: Unknown filter type");
@@ -990,11 +991,11 @@ int64_t FilterScanFileContents(std::vector<int> columns, const int32_t column_ba
           auto v2 = dynamic_cast<::arrow::StringScalar*>(filter->value2.get())->view();
           if (filter->type == MyFilterType::POINT) {
             if (min_sv > v1 || max_sv < v1) {
-              continue;
+              skip = true;
             }
           } else if (filter->type == MyFilterType::RANGE) {
             if (min_sv > v2 || max_sv < v1) {
-              continue;
+              skip = true;
             }
           } else {
             throw ParquetException("Parquet error: Unknown filter type");
@@ -1004,6 +1005,10 @@ int64_t FilterScanFileContents(std::vector<int> columns, const int32_t column_ba
       }
       default:
         throw ParquetException("Parquet error: Unsupported filter column type");
+    }
+    if (skip) {
+      printf("skip row group %d\n", r);
+      continue;
     }
     int col = 0;
     for (auto i : columns) {
