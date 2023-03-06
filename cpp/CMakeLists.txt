@@ -977,9 +977,20 @@ option(OPENFORMAT_FLAG
 if (OPENFORMAT_FLAG)
   message(STATUS "Enable the openformat changes")
   add_compile_definitions(OPENFORMAT_FLAG=1)
-else ()
-  message(STATUS "Disable the openformat changes")
-  add_compile_definitions(OPENFORMAT_FLAG=0)
+endif ()
+
+option(OF_STATS_ENABLE
+    "Enable the openformat changes"
+    OFF)
+if (OF_STATS_ENABLE)
+  add_compile_definitions(OF_STATS_ENABLE)
+endif ()
+
+option(OF_NESTED_STATS_ENABLE
+    "Enable the nested changes"
+    OFF)
+if (OF_NESTED_STATS_ENABLE)
+  add_compile_definitions(OF_NESTED_STATS_ENABLE)
 endif ()
 
 if(NOT WIN32 AND ARROW_PLASMA)

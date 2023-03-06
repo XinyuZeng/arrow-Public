@@ -83,7 +83,8 @@ int main(int argc, char** argv) {
     std::cerr << "Parquet error: " << e.what() << std::endl;
     return -1;
   }
-
+  std::cout << "total levels time: " << arrow::openformat::time_levels << "ns"
+            << std::endl;
 #if OF_STATS_ENABLE
   std::cout << "total read time: " << arrow::openformat::time_read << "ns" << std::endl;
   std::cout << "total read cnt: " << arrow::openformat::num_read << std::endl;

@@ -41,6 +41,8 @@
 #include "arrow/util/compression.h"
 #include "arrow/util/int_util_overflow.h"
 #include "arrow/util/logging.h"
+#include "arrow/util/openformat_config.h"
+#include "arrow/util/openformat_stats.h"
 #include "arrow/util/rle_encoding.h"
 #include "parquet/column_page.h"
 #include "parquet/encoding.h"
@@ -1041,8 +1043,16 @@ int64_t TypedColumnReaderImpl<DType>::ReadBatch(int64_t batch_size, int16_t* def
   // row group is finished
   int64_t num_def_levels = 0;
   int64_t values_to_read = 0;
+#if OF_NESTED_STATS_ENABLE
+  auto start = std::chrono::steady_clock::now();
+#endif
   ReadLevels(batch_size, def_levels, rep_levels, &num_def_levels, &values_to_read);
-
+#if OF_NESTED_STATS_ENABLE
+  ::arrow::openformat::time_levels +=
+      std::chrono::duration_cast<std::chrono::nanoseconds>(
+          std::chrono::steady_clock::now() - start)
+          .count();
+#endif
   *values_read = this->ReadValues(values_to_read, values);
   int64_t total_values = std::max(num_def_levels, *values_read);
   int64_t expected_values =
