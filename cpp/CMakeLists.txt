@@ -988,9 +988,23 @@ endif ()
 
 option(OF_NESTED_STATS_ENABLE
     "Enable the nested changes"
-    OFF)
+    ON)
 if (OF_NESTED_STATS_ENABLE)
   add_compile_definitions(OF_NESTED_STATS_ENABLE)
+endif ()
+
+option(OF_READ_VALUES
+    "Profile read values time"
+    OFF)
+if (OF_READ_VALUES)
+  add_compile_definitions(OF_READ_VALUES)
+endif ()
+
+option(OF_ORC_PROFILE
+    "Profile ORC time"
+    OFF)
+if (OF_ORC_PROFILE)
+  add_compile_definitions(OF_ORC_PROFILE)
 endif ()
 
 if(NOT WIN32 AND ARROW_PLASMA)

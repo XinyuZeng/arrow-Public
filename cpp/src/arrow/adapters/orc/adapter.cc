@@ -43,6 +43,7 @@
 #include "arrow/util/decimal.h"
 #include "arrow/util/key_value_metadata.h"
 #include "arrow/util/macros.h"
+#include "arrow/util/openformat_stats.h"
 #include "arrow/util/range.h"
 #include "arrow/util/visibility.h"
 #include "orc/Exceptions.hh"
@@ -452,11 +453,23 @@ class ORCFileReader::Impl {
     const auto& struct_batch = checked_cast<liborc::StructVectorBatch&>(*batch);
 
     const liborc::Type& type = row_reader->getSelectedType();
-    while (row_reader->next(*batch)) {
+    bool next_exist = row_reader->next(*batch);
+    while (next_exist) {
+#if OF_ORC_PROFILE
+      OF_INIT_TIMER(append)
+#endif
       for (int i = 0; i < builder->num_fields(); i++) {
         RETURN_NOT_OK(AppendBatch(type.getSubtype(i), struct_batch.fields[i], 0,
                                   batch->numElements, builder->GetField(i)));
       }
+#if OF_ORC_PROFILE
+      OF_ADD_TIME(append, ::arrow::openformat::time_orc_append)
+      OF_INIT_TIMER(begin)
+#endif
+      next_exist = row_reader->next(*batch);
+#if OF_ORC_PROFILE
+      OF_ADD_TIME(begin, ::arrow::openformat::time_orc_decode)
+#endif
     }
 
     return builder->Flush();

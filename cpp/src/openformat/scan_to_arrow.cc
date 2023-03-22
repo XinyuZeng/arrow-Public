@@ -18,6 +18,7 @@
 #include "arrow/dataset/file_base.h"
 #include "arrow/filesystem/api.h"
 #include "arrow/io/file.h"
+#include "arrow/util/openformat_stats.h"
 #include "json.hpp"
 #include "parquet/arrow/writer.h"
 #include "parquet/file_reader.h"
@@ -59,6 +60,12 @@ arrow::Status RunMain(int argc, char** argv) {
     ARROW_ASSIGN_OR_RAISE(table, orc_reader->Read());
     stats::cout_sec(begin, "read orc");
     std::cout << "num stripes: " << orc_reader->NumberOfStripes() << std::endl;
+    std::cout << "total decode: " << arrow::openformat::time_orc_decode << "ns"
+              << std::endl;
+    std::cout << "total append: " << arrow::openformat::time_orc_append << "ns"
+              << std::endl;
+    std::cout << "total append numeric: " << arrow::openformat::time_orc_append_numeric
+              << "ns" << std::endl;
   } else if (file_type == "parquet") {
     // Instantiate TableReader from input stream and options
     std::unique_ptr<parquet::arrow::FileReader> pq_reader;
@@ -80,11 +87,28 @@ arrow::Status RunMain(int argc, char** argv) {
     ARROW_RETURN_NOT_OK(pq_reader->ReadTable(&table));
     stats::cout_sec(begin, "read pq");
     std::cout << "num row groups:" << pq_reader->num_row_groups() << std::endl;
+    // Parquet profiling
+    std::cout << "total read values time: " << arrow::openformat::time_read_values << "ns"
+              << std::endl;
+    std::cout << "total reserve values time: " << arrow::openformat::time_reserve_values
+              << "ns" << std::endl;
+    std::cout << "total delimit records: " << arrow::openformat::time_delimit_records
+              << "ns" << std::endl;
+    std::cout << "total read records time: " << arrow::openformat::time_read_records
+              << "ns" << std::endl;
+    std::cout << "total read record data time (inside read records): "
+              << arrow::openformat::time_read_record_data << "ns" << std::endl;
+    std::cout << "total transfer column time: "
+              << arrow::openformat::time_transfer_column_data << "ns" << std::endl;
+    std::cout << "total load batch: " << arrow::openformat::time_load_batch << "ns"
+              << std::endl;
+    std::cout << "total build array time: " << arrow::openformat::time_build_array << "ns"
+              << std::endl;
   } else {
     std::cout << "Unsupported file type: " << file_type << std::endl;
     return arrow::Status::Invalid("Unsupported file type: ", file_type);
   }
-  std::cout << "table schema: " << table->schema()->ToString() << std::endl;
+  // std::cout << "table schema: " << table->schema()->ToString() << std::endl;
   return arrow::Status::OK();
 }
 

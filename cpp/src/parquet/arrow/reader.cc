@@ -36,6 +36,7 @@
 #include "arrow/util/iterator.h"
 #include "arrow/util/logging.h"
 #include "arrow/util/make_unique.h"
+#include "arrow/util/openformat_stats.h"
 #include "arrow/util/parallel.h"
 #include "arrow/util/range.h"
 #include "arrow/util/tracing_internal.h"
@@ -106,8 +107,20 @@ class ColumnReaderImpl : public ColumnReader {
 
   ::arrow::Status NextBatch(int64_t batch_size,
                             std::shared_ptr<::arrow::ChunkedArray>* out) final {
+#if OF_READ_VALUES
+    OF_INIT_TIMER(begin)
+#endif
     RETURN_NOT_OK(LoadBatch(batch_size));
+#if OF_READ_VALUES
+    OF_ADD_TIME(begin, ::arrow::openformat::time_load_batch)
+#endif
+#if OF_READ_VALUES
+    OF_UPDATE_TIMER(begin)
+#endif
     RETURN_NOT_OK(BuildArray(batch_size, out));
+#if OF_READ_VALUES
+    OF_ADD_TIME(begin, ::arrow::openformat::time_build_array)
+#endif
     for (int x = 0; x < (*out)->num_chunks(); x++) {
       RETURN_NOT_OK((*out)->chunk(x)->Validate());
     }
@@ -468,6 +481,9 @@ class LeafReader : public ColumnReaderImpl {
 
   Status LoadBatch(int64_t records_to_read) final {
     BEGIN_PARQUET_CATCH_EXCEPTIONS
+#if OF_READ_VALUES
+    OF_INIT_TIMER(begin)
+#endif
     out_ = nullptr;
     record_reader_->Reset();
     // Pre-allocation gives much better performance for flat columns
@@ -476,14 +492,26 @@ class LeafReader : public ColumnReaderImpl {
       if (!record_reader_->HasMoreData()) {
         break;
       }
+#if OF_READ_VALUES
+      OF_UPDATE_TIMER(begin)
+#endif
       int64_t records_read = record_reader_->ReadRecords(records_to_read);
+#if OF_READ_VALUES
+      OF_ADD_TIME(begin, ::arrow::openformat::time_read_records)
+#endif
       records_to_read -= records_read;
       if (records_read == 0) {
         NextRowGroup();
       }
     }
+#if OF_READ_VALUES
+    OF_UPDATE_TIMER(begin)
+#endif
     RETURN_NOT_OK(
         TransferColumnData(record_reader_.get(), field_, descr_, ctx_->pool, &out_));
+#if OF_READ_VALUES
+    OF_ADD_TIME(begin, ::arrow::openformat::time_transfer_column_data)
+#endif
     return Status::OK();
     END_PARQUET_CATCH_EXCEPTIONS
   }

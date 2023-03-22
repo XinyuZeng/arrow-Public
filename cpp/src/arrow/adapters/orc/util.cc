@@ -29,6 +29,7 @@
 #include "arrow/util/bitmap_ops.h"
 #include "arrow/util/checked_cast.h"
 #include "arrow/util/decimal.h"
+#include "arrow/util/openformat_stats.h"
 #include "arrow/util/range.h"
 #include "arrow/util/string_view.h"
 #include "arrow/visit_data_inline.h"
@@ -128,6 +129,9 @@ Status AppendMapBatch(const liborc::Type* type,
 template <class BuilderType, class BatchType, class ElemType>
 Status AppendNumericBatch(liborc::ColumnVectorBatch* column_vector_batch, int64_t offset,
                           int64_t length, ArrayBuilder* abuilder) {
+#if OF_ORC_PROFILE
+  // OF_INIT_TIMER(begin)
+#endif
   auto builder = checked_cast<BuilderType*>(abuilder);
   auto batch = checked_cast<BatchType*>(column_vector_batch);
 
@@ -140,6 +144,9 @@ Status AppendNumericBatch(liborc::ColumnVectorBatch* column_vector_batch, int64_
   }
   const ElemType* source = batch->data.data() + offset;
   RETURN_NOT_OK(builder->AppendValues(source, length, valid_bytes));
+#if OF_ORC_PROFILE
+  // OF_ADD_TIME(begin, ::arrow::openformat::time_orc_append_numeric)
+#endif
   return Status::OK();
 }
 

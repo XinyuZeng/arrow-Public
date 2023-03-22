@@ -957,7 +957,13 @@ class TypedColumnReaderImpl : public TypedColumnReader<DType>,
 
     // If the field is required and non-repeated, there are no definition levels
     if (this->max_def_level_ > 0 && def_levels != nullptr) {
+#if OF_NESTED_STATS_ENABLE
+      OF_INIT_TIMER(begin)
+#endif
       *num_def_levels = this->ReadDefinitionLevels(batch_size, def_levels);
+#if OF_NESTED_STATS_ENABLE
+      OF_ADD_TIME(begin, ::arrow::openformat::time_def_levels)
+#endif
       // TODO(wesm): this tallying of values-to-decode can be performed with better
       // cache-efficiency if fused with the level decoding.
       for (int64_t i = 0; i < *num_def_levels; ++i) {
@@ -1546,10 +1552,26 @@ class TypedRecordReader : public ColumnReaderImplBase<DType>,
 
   // Return number of logical records read
   int64_t ReadRecordData(int64_t num_records) {
+#if OF_READ_VALUES
+    OF_INIT_TIMER(top_begin)
+#endif
     // Conservative upper bound
     const int64_t possible_num_values =
         std::max(num_records, levels_written_ - levels_position_);
+#if OF_READ_VALUES
+    auto begin = std::chrono::steady_clock::now();
+#endif
     ReserveValues(possible_num_values);
+#if OF_READ_VALUES
+    ::arrow::openformat::time_reserve_values +=
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now() - begin)
+            .count();
+#endif
+
+#if OF_READ_VALUES
+    OF_UPDATE_TIMER(begin)
+#endif
 
     const int64_t start_levels_position = levels_position_;
 
@@ -1569,6 +1591,13 @@ class TypedRecordReader : public ColumnReaderImplBase<DType>,
     }
 
     int64_t null_count = 0;
+#if OF_READ_VALUES
+    OF_ADD_TIME(begin, ::arrow::openformat::time_delimit_records)
+#endif
+
+#if OF_READ_VALUES
+    begin = std::chrono::steady_clock::now();
+#endif
     if (leaf_info_.HasNullableValues()) {
       ValidityBitmapInputOutput validity_io;
       validity_io.values_read_upper_bound = levels_position_ - start_levels_position;
@@ -1586,6 +1615,9 @@ class TypedRecordReader : public ColumnReaderImplBase<DType>,
       DCHECK_GE(values_to_read, 0);
       ReadValuesDense(values_to_read);
     }
+#if OF_READ_VALUES
+    OF_ADD_TIME(begin, ::arrow::openformat::time_read_values)
+#endif
     if (this->leaf_info_.def_level > 0) {
       // Optional, repeated, or some mix thereof
       this->ConsumeBufferedValues(levels_position_ - start_levels_position);
@@ -1596,7 +1628,9 @@ class TypedRecordReader : public ColumnReaderImplBase<DType>,
     // Total values, including null spaces, if any
     values_written_ += values_to_read + null_count;
     null_count_ += null_count;
-
+#if OF_READ_VALUES
+    OF_ADD_TIME(top_begin, ::arrow::openformat::time_read_record_data)
+#endif
     return records_read;
   }
 
