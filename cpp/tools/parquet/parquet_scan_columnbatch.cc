@@ -70,7 +70,8 @@ int main(int argc, char** argv) {
         parquet::ParquetFileReader::OpenFile(filename);
     // parquet::ParquetFileReader::OpenFile(filename, false, reader_properties);
 
-    int64_t total_rows = parquet::ScanFileContents(columns, batch_size, reader.get());
+    int64_t total_rows =
+        parquet::ScanFileContentsColumnVectorBatch(columns, batch_size, reader.get());
 
     total_time = (static_cast<std::chrono::duration<double>>(
                       std::chrono::steady_clock::now() - begin))

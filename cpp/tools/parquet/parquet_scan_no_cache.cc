@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
   std::string filename;
 
   // Read command-line options
-  int batch_size = 1024;
+  int batch_size = 64 * 1024;
   const std::string COLUMNS_PREFIX = "--columns=";
   const std::string BATCH_SIZE_PREFIX = "--batch-size=";
   std::vector<int> columns;
@@ -61,31 +61,21 @@ int main(int argc, char** argv) {
   }
 
   try {
-    double total_time;
     // auto reader_properties = parquet::default_reader_properties();
     // reader_properties.enable_buffered_stream();
     // std::clock_t start_time = std::clock();
-    auto begin = std::chrono::steady_clock::now();
     std::unique_ptr<parquet::ParquetFileReader> reader =
         parquet::ParquetFileReader::OpenFile(filename);
     // parquet::ParquetFileReader::OpenFile(filename, false, reader_properties);
 
-    int64_t total_rows = parquet::ScanFileContents(columns, batch_size, reader.get());
+    int64_t total_rows =
+        parquet::ScanFileContentsAlloc(columns, batch_size, reader.get());
 
-    total_time = (static_cast<std::chrono::duration<double>>(
-                      std::chrono::steady_clock::now() - begin))
-                     .count();
-    // total_time = static_cast<double>(std::clock() - start_time) /
-    //              static_cast<double>(CLOCKS_PER_SEC);
-    std::cout << total_rows << " rows scanned in " << total_time << " seconds."
-              << std::endl;
   } catch (const std::exception& e) {
     std::cerr << "Parquet error: " << e.what() << std::endl;
     return -1;
   }
   std::cout << "total levels time: " << arrow::openformat::time_levels << "ns"
-            << std::endl;
-  std::cout << "total def levels time: " << arrow::openformat::time_def_levels << "ns"
             << std::endl;
 #if OF_STATS_ENABLE
   std::cout << "total read time: " << arrow::openformat::time_read << "ns" << std::endl;
