@@ -77,9 +77,10 @@ arrow::Status RunMain(int argc, char** argv) {
   }
   ARROW_CHECK_OK(fs::InitializeS3(fs::S3GlobalOptions()));
   auto s3_options = fs::S3Options::Defaults();
-  s3_options.region = "cn-north-1";
-  s3_options.ConfigureAccessKey("AKIA2RIW35GD5Y4ZGVIV",
-                                "+WiWhyk7WjXM8CsEcXMqN+TmQrSQFbJgKoM8MPCr");
+  s3_options.region = getenv("AWS_DEFAULT_REGION");
+  std::string access_key = getenv("AWS_ACCESS_KEY_ID");
+  std::string secret_key = getenv("AWS_SECRET_ACCESS_KEY");
+  s3_options.ConfigureAccessKey(access_key, secret_key);
   ARROW_ASSIGN_OR_RAISE(auto fs, fs::S3FileSystem::Make(s3_options));
   // ARROW_ASSIGN_OR_RAISE(auto fs, fs::FileSystemFromUri(filename));
   ARROW_ASSIGN_OR_RAISE(auto input, fs->OpenInputFile(filename));
