@@ -50,6 +50,10 @@ foreach(sourcefile ${OPENFORMAT_SOURCES})
     target_link_libraries( ${testname} ${LIBS} )
 endforeach(sourcefile ${OPENFORMAT_SOURCES})
 
+# add -lz when link raw_orc_reader
+message(STATUS "ARROW_LINK_LIBS: ${ARROW_LINK_LIBS}")
+message(STATUS "ARROW_SHARED_PRIVATE_LINK_LIBS: ${ARROW_SHARED_PRIVATE_LINK_LIBS}")
+target_link_libraries(raw_orc_reader ${LIBS} ${ARROW_SHARED_PRIVATE_LINK_LIBS})
 # target_link_libraries(pq_writer ${LIBS})
 # target_link_libraries(pq_reader ${LIBS})
 # target_link_libraries(orc_reader ${LIBS})

@@ -2,22 +2,24 @@
 #include <iostream>
 #include <sstream>
 
-#include <gperftools/profiler.h>
+// #include <gperftools/profiler.h>
 #include <orc/OrcFile.hh>
 // #include "arrow/status.h"
 #include "json.hpp"
 #include "stats.h"
 
 int RunMain(int argc, char** argv) {
-  std::ifstream ifs = std::ifstream(argv[1]);
-  nlohmann::json ex_jf = nlohmann::json::parse(ifs);
-  bool profiler_enabled = ex_jf["profiler_enabled"];
-  std::string file_path = ex_jf["file_path"];
-  std::string prof_name = ex_jf["prof_name"];
+  // std::ifstream ifs = std::ifstream(argv[1]);
+  // nlohmann::json ex_jf = nlohmann::json::parse(ifs);
+  // bool profiler_enabled = ex_jf["profiler_enabled"];
+  // std::string file_path = ex_jf["file_path"];
+  // std::string prof_name = ex_jf["prof_name"];
   // bool use_threads = ex_jf["use_threads"];
   // ARROW_UNUSED(use_threads);
-  int batch_size = atoi(argv[2]);
-  if (profiler_enabled) ProfilerStart(prof_name.c_str());
+
+  std::string file_path = argv[1];
+  int batch_size = 1024;
+  // if (profiler_enabled) ProfilerStart(prof_name.c_str());
 
   // Read table from file
   auto begin = stats::Time::now();
@@ -33,7 +35,7 @@ int RunMain(int argc, char** argv) {
     // }
   }
   stats::cout_sec(begin, "read orc");
-  if (profiler_enabled) ProfilerStop();
+  // if (profiler_enabled) ProfilerStop();
   return 0;
 }
 

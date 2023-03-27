@@ -4,7 +4,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <gperftools/profiler.h>
+// #include <gperftools/profiler.h>
 #include "arrow/array.h"
 #include "arrow/array/builder_binary.h"
 #include "arrow/buffer_builder.h"
@@ -84,13 +84,15 @@ arrow::Status test_buff_builder(std::shared_ptr<arrow::Table> table) {
 }
 
 arrow::Status RunMain(int argc, char** argv) {
-  std::ifstream ifs = std::ifstream(argv[1]);
-  nlohmann::json ex_jf = nlohmann::json::parse(ifs);
-  bool profiler_enabled = ex_jf["profiler_enabled"];
-  std::string file_path = ex_jf["file_path"];
-  std::string prof_name = ex_jf["prof_name"];
-  bool use_threads = ex_jf["use_threads"];
-  if (profiler_enabled) ProfilerStart(prof_name.c_str());
+  // std::ifstream ifs = std::ifstream(argv[1]);
+  // nlohmann::json ex_jf = nlohmann::json::parse(ifs);
+  // bool profiler_enabled = ex_jf["profiler_enabled"];
+  // std::string file_path = ex_jf["file_path"];
+  // std::string prof_name = ex_jf["prof_name"];
+  // bool use_threads = ex_jf["use_threads"];
+  // if (profiler_enabled) ProfilerStart(prof_name.c_str());
+  std::string file_path = argv[1];
+  bool use_threads = false;
   ARROW_ASSIGN_OR_RAISE(
       auto input, arrow::io::ReadableFile::Open(file_path, arrow::default_memory_pool()));
   // ARROW_ASSIGN_OR_RAISE(
@@ -110,18 +112,18 @@ arrow::Status RunMain(int argc, char** argv) {
   //     parquet::arrow::OpenFile(input, arrow::default_memory_pool(), &pq_reader));
   auto pq_file_reader = parquet::ParquetFileReader::Open(input);
   parquet::ArrowReaderProperties arrow_properties;
-  arrow_properties.set_read_dictionary(0, true);
+  // arrow_properties.set_read_dictionary(0, true);
   parquet::arrow::FileReader::Make(arrow::default_memory_pool(),
                                    std::move(pq_file_reader), arrow_properties,
                                    &pq_reader);
 
   pq_reader->set_use_threads(use_threads);
   // Read table from ORC file
-  auto begin = stats::Time::now();
   std::shared_ptr<arrow::Table> table;
+  auto begin = stats::Time::now();
   ARROW_RETURN_NOT_OK(pq_reader->ReadTable(&table));
   stats::cout_sec(begin, "read pq");
-  if (profiler_enabled) ProfilerStop();
+  // if (profiler_enabled) ProfilerStop();
   // test_buff_builder(table);
   // std::cout << table->schema()->ToString() << std::endl;
   // std::cout << orc_reader->GetCompression().ValueOrDie() << std::endl;

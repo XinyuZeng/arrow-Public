@@ -988,7 +988,7 @@ endif ()
 
 option(OF_NESTED_STATS_ENABLE
     "Enable the nested changes"
-    ON)
+    OFF)
 if (OF_NESTED_STATS_ENABLE)
   add_compile_definitions(OF_NESTED_STATS_ENABLE)
 endif ()

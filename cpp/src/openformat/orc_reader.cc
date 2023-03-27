@@ -10,11 +10,12 @@
 #include "stats.h"
 
 arrow::Status RunMain(int argc, char** argv) {
-  std::string pq_path = argv[1];
-  std::string orc_path = argv[2];
+  // std::string pq_path = argv[1];
+  std::string orc_path = argv[1];
   // bool use_threads = true;
-  ARROW_ASSIGN_OR_RAISE(
-      auto input, arrow::io::ReadableFile::Open(pq_path, arrow::default_memory_pool()));
+  // ARROW_ASSIGN_OR_RAISE(
+  //     auto input, arrow::io::ReadableFile::Open(pq_path,
+  //     arrow::default_memory_pool()));
   ARROW_ASSIGN_OR_RAISE(auto orc_input, arrow::io::ReadableFile::Open(
                                             orc_path, arrow::default_memory_pool()));
   // ARROW_ASSIGN_OR_RAISE(
