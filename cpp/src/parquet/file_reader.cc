@@ -37,7 +37,9 @@
 #include "arrow/util/future.h"
 #include "arrow/util/int_util_overflow.h"
 #include "arrow/util/logging.h"
+#include "arrow/util/openformat_stats.h"
 #include "arrow/util/ubsan.h"
+#include "openformat/stats.h"
 #include "parquet/column_reader.h"
 #include "parquet/column_scanner.h"
 #include "parquet/encryption/encryption_internal.h"
@@ -50,7 +52,6 @@
 #include "parquet/schema.h"
 #include "parquet/statistics.h"
 #include "parquet/types.h"
-
 using arrow::internal::AddWithOverflow;
 
 namespace parquet {
@@ -355,6 +356,7 @@ class SerializedFile : public ParquetFileReader::Contents {
   // exceptions for error handling (with the async path converting to Future/Status).
 
   void ParseMetaData() {
+    auto begin = std::chrono::steady_clock::now();
     int64_t footer_read_size = GetFooterReadSize();
     PARQUET_ASSIGN_OR_THROW(
         auto footer_buffer,
@@ -403,6 +405,10 @@ class SerializedFile : public ParquetFileReader::Contents {
       ParseMetaDataOfEncryptedFileWithPlaintextFooter(
           file_decryption_properties, metadata_buffer, metadata_len, read_metadata_len);
     }
+    ::arrow::openformat::time_parse_metadata +=
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now() - begin)
+            .count();
   }
 
   // Validate the source size and get the initial read size.
@@ -1231,6 +1237,88 @@ int64_t FilterScanFileContents(std::vector<int> columns, const int32_t column_ba
   }
 
   return total_rows[0];
+}
+
+int64_t ScanFileContentsBitpos(std::vector<int> columns, const int32_t column_batch_size,
+                               ParquetFileReader* reader, std::vector<uint32_t>& bitpos,
+                               uint8_t* values, double* computetime, bool print_total) {
+  std::vector<int16_t> rep_levels;
+  std::vector<int16_t> def_levels;
+
+  int num_columns = static_cast<int>(columns.size());
+
+  // columns are not specified explicitly. Add all columns
+  if (columns.size() == 0) {
+    num_columns = reader->metadata()->num_columns();
+    columns.resize(num_columns);
+    for (int i = 0; i < num_columns; i++) {
+      columns[i] = i;
+    }
+  }
+  if (num_columns == 0) {
+    // If we still have no columns(none in file), return early. The remainder of function
+    // expects there to be at least one column.
+    return 0;
+  }
+  // std::cout<<"num_columns: "<<num_columns<<std::endl;
+  std::vector<int64_t> total_rows(num_columns, 0);
+  size_t total_true_read = 0;
+  int64_t row_index = 0;
+  // std::cout << "num_row_groups: " << reader->metadata()->num_row_groups() << std::endl;
+  for (int r = 0; r < reader->metadata()->num_row_groups(); ++r) {
+    auto group_reader = reader->RowGroup(r);
+    auto num_rows = group_reader->metadata()->num_rows();
+    if (total_true_read < bitpos.size() &&
+        bitpos[total_true_read] > row_index + num_rows) {
+      row_index += num_rows;
+      // std::cout << "skip row group: " << r << std::endl;
+      continue;
+    }
+    int col = 0;
+    int64_t levels_read_this_round;
+    int64_t total_true_read_this_round;
+    for (auto i : columns) {
+      std::shared_ptr<ColumnReader> col_reader = group_reader->Column(i);
+      size_t value_byte_size = GetTypeByteSize(col_reader->descr()->physical_type());
+      std::vector<uint8_t> values_(value_byte_size * num_rows);
+      int64_t values_read = 0, values_true_read = 0;
+      levels_read_this_round = 0;
+      total_true_read_this_round = 0;
+      auto begin = stats::Time::now();
+      while (col_reader->HasNext()) {
+        int64_t levels_read =
+            ScanAllValues(column_batch_size, def_levels.data(), rep_levels.data(),
+                          values_.data() + (levels_read_this_round)*value_byte_size,
+                          &values_read, col_reader.get());
+        // int64_t levels_read = ScanAllValuesBitpos(
+        //     column_batch_size, def_levels.data(), rep_levels.data(), values_.data(),
+        //     &values_read, col_reader.get(), &values_true_read, bitpos,
+        //     row_index + levels_read_this_round,
+        //     total_true_read + total_true_read_this_round);
+        total_true_read_this_round += values_true_read;
+        levels_read_this_round += levels_read;
+      }
+      col++;
+      auto end = stats::Time::now();
+      *computetime += (std::chrono::duration<double>(end - begin)).count();
+    }
+    row_index += levels_read_this_round;
+    // total_true_read += total_true_read_this_round;
+    while (total_true_read < bitpos.size() && bitpos[total_true_read] <= row_index) {
+      total_true_read++;
+    }
+  }
+  if (print_total) {
+    printf("%ld\n", total_true_read);
+  }
+  // printf("%ld\n", row_index);
+  for (int i = 1; i < num_columns; ++i) {
+    if (total_rows[0] != total_rows[i]) {
+      throw ParquetException("Parquet error: Total rows among columns do not match");
+    }
+  }
+
+  return total_true_read;
 }
 
 }  // namespace parquet

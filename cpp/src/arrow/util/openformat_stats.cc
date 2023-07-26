@@ -17,5 +17,10 @@ int64_t time_build_array = 0;
 int64_t time_orc_decode = 0;
 int64_t time_orc_append = 0;
 int64_t time_orc_append_numeric = 0;
+// Projection breakdown
+int64_t time_parse_metadata = 0;
+
+uint32_t n_rle = 0;
+uint32_t n_bitpack = 0;
 }  // namespace openformat
 }  // namespace arrow

@@ -30,6 +30,7 @@
 #include "arrow/util/bit_stream_utils.h"
 #include "arrow/util/bit_util.h"
 #include "arrow/util/macros.h"
+#include "arrow/util/openformat_stats.h"
 
 namespace arrow {
 namespace util {
@@ -671,6 +672,39 @@ bool RleDecoder::NextCounts() {
   }
   return true;
 }
+
+// template <typename T>
+// bool RleDecoder::NextCounts() {
+//   // Read the next run's indicator int, it could be a literal or repeated run.
+//   // The int is encoded as a vlq-encoded value.
+//   uint32_t indicator_value = 0;
+//   if (!bit_reader_.GetVlqInt(&indicator_value)) return false;
+
+//   // lsb indicates if it is a literal run or repeated run
+//   bool is_literal = indicator_value & 1;
+//   uint32_t count = indicator_value >> 1;
+//   if (is_literal) {
+//     if (ARROW_PREDICT_FALSE(count == 0 || count > static_cast<uint32_t>(INT32_MAX) /
+//     8)) {
+//       return false;
+//     }
+//     literal_count_ = count * 8;
+//     openformat::n_bitpack++;
+//   } else {
+//     if (ARROW_PREDICT_FALSE(count == 0 || count > static_cast<uint32_t>(INT32_MAX))) {
+//       return false;
+//     }
+//     repeat_count_ = count;
+//     T value = {};
+//     if (!bit_reader_.GetAligned<T>(static_cast<int>(bit_util::CeilDiv(bit_width_, 8)),
+//                                    &value)) {
+//       return false;
+//     }
+//     current_value_ = static_cast<uint64_t>(value);
+//     openformat::n_rle++;
+//   }
+//   return true;
+// }
 
 /// This function buffers input values 8 at a time.  After seeing all 8 values,
 /// it decides whether they should be encoded as a literal or repeated run.

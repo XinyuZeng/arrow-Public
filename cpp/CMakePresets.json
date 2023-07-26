@@ -178,6 +178,24 @@
       }
     },
     {
+      "name": "openformat-release-static",
+      "inherits": [
+        "base-release",
+        "features-main"
+      ],
+      "displayName": "openformat-release-static",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "ARROW_PARQUET": "ON",
+        "PARQUET_BUILD_EXECUTABLES": "ON",
+        "ARROW_ORC": "ON",
+        "PARQUET_BUILD_EXAMPLES": "OFF",
+        "OPENFORMAT_FLAG": "OFF",
+        "ARROW_S3": "ON",
+        "ARROW_BUILD_STATIC": "ON"
+      }
+    },
+    {
       "name": "openformat-release-no-simd",
       "inherits": [
         "base-release",

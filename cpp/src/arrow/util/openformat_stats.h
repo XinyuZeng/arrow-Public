@@ -29,5 +29,9 @@ extern int64_t time_orc_append_numeric;
   dst += std::chrono::duration_cast<std::chrono::nanoseconds>( \
              std::chrono::steady_clock::now() - begin)         \
              .count();
+// Projection breakdown
+extern int64_t time_parse_metadata;
+extern uint32_t n_rle;
+extern uint32_t n_bitpack;
 }  // namespace openformat
 }  // namespace arrow

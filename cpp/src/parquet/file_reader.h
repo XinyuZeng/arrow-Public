@@ -202,5 +202,9 @@ int64_t ScanFileContentsAlloc(std::vector<int> columns, const int32_t column_bat
                               ParquetFileReader* reader);
 int64_t FilterScanFileContents(std::vector<int> columns, const int32_t column_batch_size,
                                ParquetFileReader* reader, MyFilter* filter);
+int64_t ScanFileContentsBitpos(std::vector<int> columns, const int32_t column_batch_size,
+                               ParquetFileReader* reader, std::vector<uint32_t>& bitpos,
+                               uint8_t* values, double* computetime,
+                               bool print_total = true);
 
 }  // namespace parquet
