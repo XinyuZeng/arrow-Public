@@ -16,6 +16,7 @@
 // under the License.
 
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
@@ -37,21 +38,15 @@
 #include "json.hpp"
 #include "parquet/api/reader.h"
 
-int single_file(std::string filename, std::string ids) {
+int single_file(const std::string& filename, const std::vector<uint32_t>& rows) {
   // std::string filename;
+  // std::cout << "read: " << filename << std::endl;
 
   // Read command-line options
   int batch_size = 1024;
   std::vector<int> columns = {1, 2};
-  std::vector<uint32_t> rows;
+  // std::vector<uint32_t> rows;
   // int num_columns = 0;
-
-  // convert comma separated ids into rows
-  std::stringstream ss(ids);
-  std::string id;
-  while (std::getline(ss, id, ',')) {
-    rows.push_back(std::stoi(id));
-  }
 
   try {
     // double total_time;
@@ -84,7 +79,6 @@ int single_file(std::string filename, std::string ids) {
   std::cout << "total read time: " << arrow::openformat::time_read << "ns" << std::endl;
   std::cout << "total read cnt: " << arrow::openformat::num_read << std::endl;
 #endif
-  // system("cat /proc/$PPID/io");
   return 0;
 }
 
@@ -139,12 +133,18 @@ class ThreadPool {
 int main(int argc, char** argv) {
   std::ifstream ifs = std::ifstream(argv[1]);
   nlohmann::json ex_jf = nlohmann::json::parse(ifs);
-  std::unordered_map<std::string, std::string> file_to_ids;
+  std::map<std::string, std::vector<uint32_t>> file_to_ids;
   for (auto& item : ex_jf.items()) {
-    file_to_ids[item.key()] = item.value();
+    // convert comma separated ids into rows
+    std::stringstream ss(std::string(item.value()));
+    std::string id;
+    while (std::getline(ss, id, ',')) {
+      file_to_ids[item.key()].push_back(std::stoi(id));
+    }
   }
 
   auto* pool = new ThreadPool(8);  // Use 8 threads
+  // std::cout << "total num of files: " << file_to_ids.size() << std::endl;
   auto begin = std::chrono::steady_clock::now();
   for (const auto& item : file_to_ids) {
     pool->enqueue([item] {
@@ -152,7 +152,8 @@ int main(int argc, char** argv) {
       // cmd << "scan_exec_pq --columns=1,2 --rows=" << item.second << " " << item.first;
       // auto c_str = const_cast<char*>(cmd.str().c_str());
       single_file(item.first, item.second);
-      // std::system(cmd.str().c_str());kk
+      // std::cout << "finished " << item.first << std::endl;
+      // std::system(cmd.str().c_str());
     });
   }
   delete pool;
@@ -160,5 +161,6 @@ int main(int argc, char** argv) {
                          std::chrono::steady_clock::now() - begin))
                         .count();
   std::cout << "total time: " << total_time << " seconds." << std::endl;
+  // system("cat /proc/$PPID/io");
   return 0;
 }

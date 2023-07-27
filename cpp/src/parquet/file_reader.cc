@@ -1240,8 +1240,9 @@ int64_t FilterScanFileContents(std::vector<int> columns, const int32_t column_ba
 }
 
 int64_t ScanFileContentsBitpos(std::vector<int> columns, const int32_t column_batch_size,
-                               ParquetFileReader* reader, std::vector<uint32_t>& bitpos,
-                               uint8_t* values, double* computetime, bool print_total) {
+                               ParquetFileReader* reader,
+                               const std::vector<uint32_t>& bitpos, uint8_t* values,
+                               double* computetime, bool print_total) {
   std::vector<int16_t> rep_levels;
   std::vector<int16_t> def_levels;
 
@@ -1304,6 +1305,11 @@ int64_t ScanFileContentsBitpos(std::vector<int> columns, const int32_t column_ba
     }
     row_index += levels_read_this_round;
     // total_true_read += total_true_read_this_round;
+    // single row group optimization
+    if (r + 1 == reader->metadata()->num_row_groups()) {
+      total_true_read = bitpos.size();
+      break;
+    }
     while (total_true_read < bitpos.size() && bitpos[total_true_read] <= row_index) {
       total_true_read++;
     }
