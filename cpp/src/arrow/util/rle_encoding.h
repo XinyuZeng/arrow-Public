@@ -573,6 +573,7 @@ inline int RleDecoder::GetBatchWithDict(const T* dictionary, int32_t dictionary_
       /* Upkeep counters */
       repeat_count_ -= repeat_batch;
       values_read += repeat_batch;
+      // openformat::n_rle += repeat_batch;
       out += repeat_batch;
     } else if (literal_count_ > 0) {
       constexpr int kBufferSize = 1024;
@@ -593,6 +594,7 @@ inline int RleDecoder::GetBatchWithDict(const T* dictionary, int32_t dictionary_
       /* Upkeep counters */
       literal_count_ -= literal_batch;
       values_read += literal_batch;
+      // openformat::n_bitpack += literal_batch;
       out += literal_batch;
     } else {
       if (!NextCounts<IndexType>()) return values_read;
@@ -689,7 +691,7 @@ bool RleDecoder::NextCounts() {
 //       return false;
 //     }
 //     literal_count_ = count * 8;
-//     openformat::n_bitpack++;
+//     openformat::n_bitpack_seq++;
 //   } else {
 //     if (ARROW_PREDICT_FALSE(count == 0 || count > static_cast<uint32_t>(INT32_MAX))) {
 //       return false;
@@ -701,7 +703,7 @@ bool RleDecoder::NextCounts() {
 //       return false;
 //     }
 //     current_value_ = static_cast<uint64_t>(value);
-//     openformat::n_rle++;
+//     openformat::n_rle_seq++;
 //   }
 //   return true;
 // }

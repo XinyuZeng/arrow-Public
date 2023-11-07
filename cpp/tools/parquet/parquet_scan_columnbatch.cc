@@ -91,6 +91,8 @@ int main(int argc, char** argv) {
             << std::endl;
   std::cout << "n_rle: " << arrow::openformat::n_rle << std::endl;
   std::cout << "n_bitpack: " << arrow::openformat::n_bitpack << std::endl;
+  std::cout << "n_rle_seq: " << arrow::openformat::n_rle_seq << std::endl;
+  std::cout << "n_bitpack_seq: " << arrow::openformat::n_bitpack_seq << std::endl;
 #if OF_STATS_ENABLE
   std::cout << "total read time: " << arrow::openformat::time_read << "ns" << std::endl;
   std::cout << "total read cnt: " << arrow::openformat::num_read << std::endl;

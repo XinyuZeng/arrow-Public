@@ -33,5 +33,7 @@ extern int64_t time_orc_append_numeric;
 extern int64_t time_parse_metadata;
 extern uint32_t n_rle;
 extern uint32_t n_bitpack;
+extern uint32_t n_rle_seq;
+extern uint32_t n_bitpack_seq;
 }  // namespace openformat
 }  // namespace arrow

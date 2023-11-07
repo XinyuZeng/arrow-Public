@@ -22,5 +22,7 @@ int64_t time_parse_metadata = 0;
 
 uint32_t n_rle = 0;
 uint32_t n_bitpack = 0;
+uint32_t n_rle_seq = 0;
+uint32_t n_bitpack_seq = 0;
 }  // namespace openformat
 }  // namespace arrow
